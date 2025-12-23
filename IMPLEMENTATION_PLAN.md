@@ -56,22 +56,21 @@ ics2gcal/
 
 #### C. ICS Parser (ics-parser.ts)
 - **Purpose**: Parse .ics file format into structured data
-- **Options**:
-  - **Option 1**: Use existing library (e.g., `ical.js`, `node-ical`)
-  - **Option 2**: Build custom parser for basic VEVENT support
-- **Recommendation**: Use `ical.js` for robust RFC 5545 compliance
+- **Library**: Using `ical.js` for robust RFC 5545 compliance
 - **Handles**:
   - VEVENT parsing (title, description, start/end times, location, etc.)
   - Timezone conversion (VTIMEZONE)
   - Recurring events (RRULE)
   - Multiple events in one file
+  - Edge cases in various .ics file formats
 
 #### D. Google Calendar API Integration (gcal-api.ts)
 - **Purpose**: Interface with Google Calendar API
 - **Responsibilities**:
-  - Create calendar events via API
+  - Create calendar events via API (always to default calendar)
   - Handle batch operations for multiple events
   - Map ICS properties to Google Calendar event format
+  - Return event URLs for user to view/edit in Google Calendar
   - Error handling and retry logic
 
 ### 3. User Flow
@@ -85,7 +84,7 @@ ics2gcal/
    ↓
 5. User drops file
    ↓
-6. Content script reads file
+6. Content script reads file & shows loading indicator
    ↓
 7. Parse .ics file → extract events
    ↓
@@ -93,9 +92,11 @@ ics2gcal/
    ↓
 9. Background script authenticates (if needed)
    ↓
-10. Create events via Google Calendar API
+10. Create events via Google Calendar API (to default calendar)
    ↓
-11. Display success message with links to created events
+11. Display success notification with links to view/edit events in Google Calendar
+   ↓
+12. User clicks link to view event and can edit using native Google Calendar UI
 ```
 
 ### 4. Implementation Phases
@@ -112,15 +113,22 @@ ics2gcal/
 - [ ] Create visual drop zone overlay
 - [ ] Read file content from drop event
 - [ ] Validate file is .ics format
+- [ ] Handle edge cases:
+  - Multiple files dropped
+  - Non-.ics files (show error)
+  - Drag from different sources (browser, desktop, email)
+  - Large files
+  - Invalid file encodings
 - [ ] Display basic UI feedback
 
 #### Phase 3: ICS Parsing
-- [ ] Integrate ical.js or similar library
+- [ ] Integrate ical.js library
 - [ ] Parse VEVENT components
 - [ ] Extract event properties (summary, dtstart, dtend, location, description)
 - [ ] Handle timezones correctly
-- [ ] Support recurring events
-- [ ] Unit tests for parser
+- [ ] Support recurring events (RRULE)
+- [ ] Handle various .ics format variations and edge cases
+- [ ] Unit tests for parser with real-world .ics files
 
 #### Phase 4: Google Calendar API Integration
 - [ ] Set up Google Cloud Project
@@ -132,10 +140,11 @@ ics2gcal/
 
 #### Phase 5: User Experience Polish
 - [ ] Loading indicators during upload
-- [ ] Success/error notifications
-- [ ] Allow user to select target calendar
-- [ ] Preview events before adding
-- [ ] Handle edge cases (duplicate events, all-day events, etc.)
+- [ ] Success notifications with clickable links to view events in Google Calendar
+- [ ] Error notifications with helpful messages
+- [ ] Handle edge cases (all-day events, multi-day events, etc.)
+- [ ] Smooth animations for drop zone
+- [ ] Progress indicator for multiple events
 
 #### Phase 6: Testing & Documentation
 - [ ] End-to-end testing with real .ics files
@@ -144,33 +153,33 @@ ics2gcal/
 - [ ] Add README with setup instructions
 - [ ] Prepare for Chrome Web Store submission
 
-## Technical Decisions to Discuss
+## Architectural Decisions Made
 
-### 1. **ICS Parsing Library**
-   - **ical.js**: Full-featured, RFC 5545 compliant, ~50KB
-   - **node-ical**: Simpler, smaller, may miss edge cases
-   - **Custom parser**: Lightweight but requires more development
-   - **Recommendation**: Start with ical.js for reliability
+### 1. **ICS Parsing Library**: ical.js
+   - Full-featured, RFC 5545 compliant
+   - Handles edge cases and various .ics formats
+   - Supports timezones, recurring events, and complex specifications
 
-### 2. **Build Tool**
-   - **Webpack**: Mature, well-documented for Chrome extensions
-   - **Vite**: Faster builds, modern, good TypeScript support
-   - **Recommendation**: Vite for faster development
+### 2. **Build Tool**: Vite
+   - Faster builds and modern tooling
+   - Excellent TypeScript support
+   - Good plugin ecosystem for Chrome extensions
 
-### 3. **UI Framework**
-   - **Vanilla JS/TS**: Lightweight, no dependencies
-   - **React/Preact**: Component-based, larger bundle
-   - **Recommendation**: Vanilla TS for content script (performance), optional React for popup
+### 3. **UI Framework**: Vanilla TypeScript
+   - Lightweight, minimal bundle size for content script
+   - Direct DOM manipulation for better performance
+   - No framework overhead in injected code
 
-### 4. **OAuth Flow**
-   - **chrome.identity API**: Built-in, requires Chrome Web Store listing
-   - **Manual OAuth**: More control, works in development
-   - **Recommendation**: chrome.identity API for production
+### 4. **OAuth Flow**: chrome.identity API
+   - Built-in Chrome API for authentication
+   - Secure token management
+   - Simpler implementation than manual OAuth
 
-### 5. **Event Preview**
-   - **Show preview modal before creating**: Better UX, user control
-   - **Auto-create with undo option**: Faster workflow
-   - **Recommendation**: Preview modal for first version
+### 5. **User Experience Approach**
+   - **No preview modal**: Events are created directly for fast workflow
+   - **Post-creation editing**: Users edit via native Google Calendar UI after creation
+   - **Default calendar**: Always use user's default calendar (no selection UI)
+   - **No duplicate detection**: Keep implementation simple, trust user intent
 
 ## Dependencies
 
@@ -197,20 +206,15 @@ ics2gcal/
 5. **User consent**: Clear messaging about what data is accessed
 
 ## Future Enhancements (Post-MVP)
+- Event preview/editing before creation (optional modal)
+- Duplicate event detection and handling
+- Multi-calendar support (let users choose target calendar)
 - Support for .ics URLs (paste link instead of file)
 - Bulk operations (multiple files at once)
-- Event editing before creation
-- Support for other calendar properties (attendees, reminders)
+- Support for additional calendar properties (attendees, reminders, attachments)
 - Analytics/usage tracking (privacy-respecting)
-- Support for other calendar services
-
-## Open Questions for Discussion
-1. Should we support editing event details before adding to calendar?
-2. How should we handle duplicate events?
-3. Should we allow selecting a specific calendar (if user has multiple)?
-4. What level of .ics spec compliance do we need? (basic events vs. full RFC 5545)
-5. Should we support drag-and-drop from external sources (email attachments, etc.)?
+- Support for other calendar services (Outlook, etc.)
 
 ---
 
-**Next Steps**: Review and refine this plan, then begin Phase 1 implementation.
+**Ready for Implementation**: All architectural decisions have been finalized. Begin Phase 1.
